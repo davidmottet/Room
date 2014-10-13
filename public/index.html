@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html ng-app="ClientApp">
+	<head>
+		<title>Room - Event</title>
+	</head>
+	<body ng-controller="MasterCtrl">
+		<div id="room-content" class="textbox">
+			<ul>
+				<li ng-repeat="msg in chat">{{msg}}</li>
+			</ul>
+		</div>
+		<form id="room-form" style="display: block;">
+			<select id="room-select" ng-model="room">
+				<option value="first room">first room</option>
+				<option value="second room">second room</option>
+				<option value="third room">third room</option>
+			</select>
+			<input type="button" value="join" id="room-join" ng-click="join()">
+			<input type="text" id="room-text" ng-model="text">
+			<input type="submit" value="Submit" ng-click="send()">
+		</form>
+		<script src="/socket.io/socket.io.js"></script>
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.26/angular.min.js"></script>
+		<script type="text/javascript">
+			var app = angular.module('ClientApp', [])
+				.factory('socket', function ($rootScope) {
+					var socket = io.connect('/room');
+					return {
+						on : function (eventName, callback) {
+							socket.on(eventName, function () {
+								var args = arguments;
+								$rootScope.$apply(function () {
+									callback.apply(socket, args);
+								});
+							});
+						},
+						emit : function (eventName, data, callback) {
+							socket.emit(eventName, data, function () {
+								var args = arguments;
+								$rootScope.$apply(function () {
+									if (callback) {
+										callback.apply(socket, args);
+									};
+								});
+							});
+						}
+					};
+				})
+				.controller('MasterCtrl', ['$scope', 'socket', function ($scope, socket) {
+					$scope.chat = [];
+					$scope.joined = false;
+
+					$scope.join = function () {
+						console.log('try joined '+$scope.room);
+						$scope.joined = true;
+						socket.emit('join room', $scope.room);
+						
+					};
+
+					$scope.send = function () {
+						$scope.chat.push('from me : '+$scope.text);
+						socket.emit('fromclient', $scope.text);
+						$scope.text = "";
+					};
+
+					socket.on('joined', function (msg) {
+						console.log('joined')
+						$scope.chat.push(msg);
+					});
+
+					socket.on('connect', function (data) {
+						console.log('connect')
+						$scope.chat.push(data);
+					});
+					
+					socket.on('message', function(msg) {
+						console.log('message')
+						$scope.chat.push(msg);
+					});
+				}]);
+		</script>
+	</body>
+</html>
